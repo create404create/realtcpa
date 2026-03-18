@@ -1,83 +1,147 @@
+// ==================== CONFIGURATION ====================
 const API_BASE_URL = "https://api.uspeoplesearch.site/tcpa/v1";
+// CORS Proxy - Pehle isko activate karna hoga: https://cors-anywhere.herokuapp.com/
+const CORS_PROXY = "https://cors-anywhere.herokuapp.com/";
 
-document.getElementById('searchBtn').addEventListener('click', performSearch);
-document.getElementById('phoneInput').addEventListener('keypress', (e) => {
+// Agar CORS proxy kaam na kare to ye alternate proxy use karein:
+// const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
+// ==================== DOM ELEMENTS ====================
+const phoneInput = document.getElementById('phoneInput');
+const searchBtn = document.getElementById('searchBtn');
+const resultArea = document.getElementById('resultArea');
+
+// ==================== EVENT LISTENERS ====================
+searchBtn.addEventListener('click', performSearch);
+phoneInput.addEventListener('keypress', (e) => {
     if(e.key === 'Enter') performSearch();
 });
 
+// Input validation - sirf numbers allow karein
+phoneInput.addEventListener('input', function(e) {
+    this.value = this.value.replace(/[^0-9]/g, '');
+});
+
+// ==================== MAIN SEARCH FUNCTION ====================
 async function performSearch() {
-    const phoneInput = document.getElementById('phoneInput');
-    const resultArea = document.getElementById('resultArea');
     const phone = phoneInput.value.trim();
 
-    // Basic validation
-    if(!phone || phone.length !== 10 || isNaN(phone)) {
-        resultArea.innerHTML = `<div class="info-card" style="text-align:center;color:#dc2626;padding:30px;">❌ Please enter a valid 10-digit phone number.</div>`;
+    // Validation
+    if(!phone || phone.length !== 10) {
+        showError("❌ Please enter a valid 10-digit phone number (numbers only)");
         return;
     }
 
+    // Disable button during search
+    searchBtn.disabled = true;
+    searchBtn.textContent = 'Searching...';
+    
     // Show loading
-    resultArea.innerHTML = `<div class="info-card" style="text-align:center;padding:30px;">⏳ Searching for ${phone}...</div>`;
+    showLoading(phone);
 
     try {
-        // Construct API URL with query parameter
-        const apiUrl = `${API_BASE_URL}?x=${encodeURIComponent(phone)}`;
+        // CORS proxy ke saath API call
+        const apiUrl = `${CORS_PROXY}${API_BASE_URL}?x=${phone}`;
+        
+        console.log('Fetching:', apiUrl); // Debugging ke liye
         
         const response = await fetch(apiUrl, {
-            method: 'GET',
             headers: {
-                'Accept': 'application/json',
-                // Add any other headers if required by the API (like API keys)
-                // 'Authorization': 'Bearer YOUR_API_KEY'
+                'X-Requested-With': 'XMLHttpRequest' // CORS proxy ke liye zaroori
             }
         });
 
         if (!response.ok) {
-            // Handle HTTP errors
-            let errorMsg = `API Error: ${response.status}`;
-            if(response.status === 400) errorMsg = "Bad Request: Phone number format might be incorrect.";
-            if(response.status === 404) errorMsg = "API endpoint not found.";
-            if(response.status === 500) errorMsg = "Server error. Please try later.";
-            throw new Error(errorMsg);
+            throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
+        console.log('API Response:', data); // Debugging ke liye
+        
         displayResults(data, phone);
 
     } catch (error) {
-        console.error("Fetch error:", error);
-        resultArea.innerHTML = `<div class="info-card" style="text-align:center;color:#dc2626;padding:30px;">❌ Error: ${error.message}</div>`;
+        console.error('Fetch Error:', error);
+        handleError(error);
+    } finally {
+        // Re-enable button
+        searchBtn.disabled = false;
+        searchBtn.textContent = 'Search';
     }
 }
 
+// ==================== DISPLAY RESULTS ====================
 function displayResults(data, phone) {
-    // This function parses the API response.
-    // IMPORTANT: Replace the mock data below with actual parsing of 'data'
-    // based on the JSON structure your API returns.
+    // Agar data empty hai to mock data show karein (for demonstration)
+    const hasData = data && Object.keys(data).length > 0;
     
-    // Example of parsing - adjust according to your actual API response
-    const locationInfo = data?.location || { 
-        zip: '87106', 
-        city: 'ALBUQUERQUE', 
-        county: 'BERNALILLO', 
-        state: 'NM' 
+    let locationInfo = {
+        zip: '87106',
+        city: 'ALBUQUERQUE',
+        county: 'BERNALILLO',
+        state: 'NM'
     };
-    
-    // Database suggestions - map API response to these statuses
-    // Modify this logic based on your API's actual response fields
+
+    // Agar API se location data milta hai to use karein
+    if (hasData && data.location) {
+        locationInfo = { ...locationInfo, ...data.location };
+    }
+
+    // Database statuses - API response ke hisaab se customize karein
     const dbStatuses = [
-        { name: 'Litigators DB', key: 'litigator', found: data?.litigator?.found ?? false },
-        { name: 'Blacklisted DB', key: 'blacklist', found: data?.blacklist?.found ?? true }, // Example: true means found in blacklist (bad)
-        { name: 'DNC Suggests', key: 'dnc', found: data?.dnc?.found ?? true },
-        { name: 'Social Analytics', key: 'social', found: data?.social?.isGood ?? true },
-        { name: 'Closers DNC', key: 'closers', found: data?.closers?.found ?? false },
-        { name: 'Old Closers DNC', key: 'oldClosers', found: data?.oldClosers?.found ?? false },
-        { name: 'Invalid Phones', key: 'invalid', found: data?.invalid?.found ?? false },
-        { name: 'VOIP Blocked', key: 'voip', found: data?.voip?.found ?? false }
+        { 
+            name: 'Litigators DB', 
+            found: hasData ? (data.litigator?.found || false) : false,
+            foundText: 'Found',
+            notFoundText: 'Not Found'
+        },
+        { 
+            name: 'Blacklisted DB', 
+            found: hasData ? (data.blacklist?.found || true) : true, // Default true for demo
+            foundText: 'FOUND (Blocked)',
+            notFoundText: 'Not Found'
+        },
+        { 
+            name: 'DNC Suggests', 
+            found: hasData ? (data.dnc?.found || true) : true,
+            foundText: 'DO NOT CALL',
+            notFoundText: 'Not Found'
+        },
+        { 
+            name: 'Social Analytics', 
+            found: hasData ? (data.social?.isGood || true) : true,
+            foundText: 'Good',
+            notFoundText: 'Caution'
+        },
+        { 
+            name: 'Closers DNC', 
+            found: hasData ? (data.closers?.found || false) : false,
+            foundText: 'Found',
+            notFoundText: 'Not found, Good to GO!'
+        },
+        { 
+            name: 'Old Closers DNC', 
+            found: hasData ? (data.oldClosers?.found || false) : false,
+            foundText: 'Found',
+            notFoundText: 'Not found, Good to Go!'
+        },
+        { 
+            name: 'Invalid Phones', 
+            found: hasData ? (data.invalid?.found || false) : false,
+            foundText: 'Found',
+            notFoundText: 'Not found, Good to GO!'
+        },
+        { 
+            name: 'VOIP Blocked', 
+            found: hasData ? (data.voip?.found || false) : false,
+            foundText: 'Found',
+            notFoundText: 'Not found, Good to GO!'
+        }
     ];
 
     let html = `
         <div class="info-card">
+            <div class="phone-highlight">📱 ${phone}</div>
             <div class="info-title">📍 Location Information</div>
             <div class="location-grid">
                 <div class="location-item"><strong>Zip:</strong> ${locationInfo.zip}</div>
@@ -87,43 +151,106 @@ function displayResults(data, phone) {
             </div>
         </div>
         <div class="info-card">
-            <div class="info-title">📋 Database Suggestions for <strong style="font-size:1.2rem;">${phone}</strong></div>
+            <div class="info-title">📋 Database Suggestions</div>
             <div class="db-suggestions">
     `;
 
     dbStatuses.forEach(db => {
-        let statusText = '';
+        // Determine status text and class
+        let statusText = db.found ? db.foundText : db.notFoundText;
         let statusClass = '';
-
-        // Customize status text and class based on 'found' value and database meaning
-        if (db.name === 'Blacklisted DB' || db.name === 'DNC Suggests') {
-            // For blacklist/DNC, 'found' means it's bad
-            statusText = db.found ? '🔴 FOUND (Blocked)' : '✅ Not Found, Good';
+        
+        // Special cases for color coding
+        if (db.name.includes('DNC') || db.name.includes('Blacklist')) {
             statusClass = db.found ? 'status-found' : 'status-notfound';
         } else if (db.name === 'Social Analytics') {
-            statusText = db.found ? '✅ Good' : '⚠️ Caution';
-            statusClass = db.found ? 'status-notfound' : 'status-found';
+            statusClass = db.found ? 'status-notfound' : 'status-warning';
         } else {
-            // For others like Closers, Invalid, VOIP - 'found' might mean it's listed (bad)
-            statusText = db.found ? '🔴 Found' : '✅ Not found, Good to GO!';
             statusClass = db.found ? 'status-found' : 'status-notfound';
         }
 
         html += `
-            <div class="suggestion-row ${statusClass}">
+            <div class="suggestion-row">
                 <span class="db-name">${db.name}</span>
-                <span class="db-status">${statusText}</span>
+                <span class="db-status ${statusClass}">${statusText}</span>
             </div>
         `;
     });
+
+    // API response raw data show karein (debugging ke liye)
+    if (hasData) {
+        html += `
+            <div style="margin-top:20px; padding-top:15px; border-top:1px dashed #cbd5e1; font-size:0.8rem; color:#64748b;">
+                <details>
+                    <summary>📦 Raw API Response (Debug)</summary>
+                    <pre style="background:#f1f5f9; padding:10px; border-radius:8px; overflow-x:auto; margin-top:10px;">${JSON.stringify(data, null, 2)}</pre>
+                </details>
+            </div>
+        `;
+    }
 
     html += `
             </div>
         </div>
         <div class="footer-note">
-            © 2025 - TCPA Application (Powered by your API)
+            © 2025 - TCPA Application | API: uspeoplesearch.site
         </div>
     `;
 
-    document.getElementById('resultArea').innerHTML = html;
+    resultArea.innerHTML = html;
 }
+
+// ==================== HELPER FUNCTIONS ====================
+function showLoading(phone) {
+    resultArea.innerHTML = `
+        <div class="loading-card">
+            ⏳ Searching for <strong>${phone}</strong>...<br>
+            <small style="display:block; margin-top:10px;">CORS proxy activate ho raha hai...</small>
+        </div>
+    `;
+}
+
+function showError(message) {
+    resultArea.innerHTML = `
+        <div class="error-card">
+            ❌ ${message}<br><br>
+            <small>💡 Tips:<br>
+            1. CORS proxy activate karein: <a href="https://cors-anywhere.herokuapp.com/" target="_blank">yahan click karein</a><br>
+            2. Sahi 10-digit number daalein<br>
+            3. Console (F12) check karein errors ke liye</small>
+        </div>
+    `;
+}
+
+function handleError(error) {
+    let userMessage = "API se connect nahi ho paaya. ";
+    
+    if (error.message.includes('Failed to fetch')) {
+        userMessage = `🔴 CORS Error: API ne request block kar di.<br><br>
+        <b>Solution:</b><br>
+        1. Pehle <a href="https://cors-anywhere.herokuapp.com/" target="_blank" style="color:#2563eb;">yahan click karein</a><br>
+        2. "Request temporary access" button dabayein<br>
+        3. Phir wapas search karein<br><br>
+        Agar phir bhi kaam na kare to:<br>
+        - Doosra proxy try karein: https://api.allorigins.win/raw?url=`;
+    } else {
+        userMessage += error.message;
+    }
+    
+    resultArea.innerHTML = `
+        <div class="error-card">
+            ❌ ${userMessage}
+        </div>
+    `;
+}
+
+// ==================== INITIAL CHECK ====================
+// Check karein ki CORS proxy available hai ya nahi
+window.addEventListener('load', () => {
+    console.log('🚀 TCPA Lookup Ready!');
+    console.log('📡 CORS Proxy:', CORS_PROXY);
+    console.log('🎯 API URL:', API_BASE_URL);
+    
+    // Demo number show karein
+    phoneInput.value = '5052209250';
+});
