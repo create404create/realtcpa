@@ -16,7 +16,7 @@ body {
 
 .container {
     background: white;
-    max-width: 700px;
+    max-width: 750px;
     width: 100%;
     border-radius: 28px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
@@ -38,7 +38,7 @@ h1 {
 .search-box {
     display: flex;
     gap: 12px;
-    margin-bottom: 35px;
+    margin-bottom: 25px;
     background: #f8fafc;
     padding: 8px;
     border-radius: 60px;
@@ -82,6 +82,13 @@ h1 {
     transform: scale(1.02);
 }
 
+#searchBtn:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 .result-area {
     background: #ffffff;
     border-radius: 24px;
@@ -95,6 +102,14 @@ h1 {
     margin-bottom: 20px;
     border: 1px solid #e9eef2;
     box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.welcome-message {
+    text-align: center;
+    color: #64748b;
+    font-size: 1.1rem;
+    padding: 30px;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
 }
 
 .info-title {
@@ -129,7 +144,7 @@ h1 {
 .db-suggestions {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .suggestion-row {
@@ -159,10 +174,9 @@ h1 {
     padding: 6px 16px;
     border-radius: 40px;
     font-size: 0.9rem;
-    background: #f1f5f9;
-    color: #1e293b;
 }
 
+/* Status Colors */
 .status-found {
     background: #fee2e2;
     color: #b91c1c;
@@ -175,11 +189,64 @@ h1 {
     border-left-color: #22c55e;
 }
 
+.status-warning {
+    background: #fef9c3;
+    color: #854d0e;
+    border-left-color: #eab308;
+}
+
+/* Error and Loading States */
+.error-card {
+    background: #fee2e2;
+    color: #991b1b;
+    border-left: 4px solid #dc2626;
+    padding: 20px;
+    text-align: center;
+    border-radius: 12px;
+}
+
+.loading-card {
+    background: #f1f5f9;
+    color: #334155;
+    text-align: center;
+    padding: 30px;
+    border-radius: 12px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Footer */
 .footer-note {
     text-align: center;
-    margin-top: 30px;
+    margin-top: 25px;
     font-size: 0.85rem;
     color: #94a3b8;
     border-top: 1px dashed #cbd5e1;
     padding-top: 18px;
+}
+
+.cors-note {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 0.8rem;
+    color: #3b82f6;
+    background: #eff6ff;
+    padding: 8px;
+    border-radius: 30px;
+}
+
+/* Phone number highlight */
+.phone-highlight {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #3b82f6;
+    background: #eff6ff;
+    padding: 5px 15px;
+    border-radius: 40px;
+    display: inline-block;
+    margin-bottom: 15px;
 }
